@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garba Event Manager</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body{background:#f8fafc}
+.card{
+    background:white;
+    padding:16px;
+    border-radius:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+.btn{
+    padding:8px 12px;
+    border-radius:6px;
+    color:white;
+    cursor:pointer;
+}
+</style>
+
+</head>
+<body class="p-4">
+
+<div class="max-w-6xl mx-auto">
+
+<h1 class="text-3xl font-bold mb-4">
+🕺 Garba Event Manager
+</h1>
+
+<p class="mb-4">
+Adult Fee: <strong>MXN 179</strong> |
+Children Under 10: <strong>Free</strong>
+</p>
+
+<div class="grid md:grid-cols-6 gap-3 mb-6">
+
+<div class="card">
+<div>Families</div>
+<div id="familiesKpi" class="text-xl font-bold">0</div>
+</div>
+
+<div class="card">
+<div>Adults</div>
+<div id="adultsKpi" class="text-xl font-bold">0</div>
+</div>
+
+<div class="card">
+<div>Children</div>
+<div id="childrenKpi" class="text-xl font-bold">0</div>
+</div>
+
+<div class="card">
+<div>Attendance</div>
+<div id="attendanceKpi" class="text-xl font-bold">0</div>
+</div>
+
+<div class="card">
+<div>Revenue</div>
+<div id="revenueKpi" class="text-xl font-bold">0</div>
+</div>
+
+<div class="card">
+<div>Outstanding</div>
+<div id="outstandingKpi" class="text-xl font-bold">0</div>
+</div>
+
+</div>
+
+<div class="card mb-4">
+
+<h2 class="font-bold mb-3">
+Registration
+</h2>
+
+<div class="grid md:grid-cols-5 gap-2">
+
+<input id="familyName"
+placeholder="Family Name"
+class="border p-2 rounded">
+
+<input id="phone"
+placeholder="Phone Number"
+class="border p-2 rounded">
+
+<input id="adults"
+type="number"
+placeholder="Adults"
+class="border p-2 rounded">
+
+<input id="children"
+type="number"
+placeholder="Children"
+class="border p-2 rounded">
+
+<input id="amountPaid"
+type="number"
+placeholder="Amount Paid"
+class="border p-2 rounded">
+
+</div>
+
+<div class="mt-3">
+
+<button onclick="saveFamily()"
+class="btn bg-blue-600">
+Save
+</button>
+
+<span id="editingLabel"
+class="ml-3 font-semibold text-blue-600"></span>
+
+</div>
+
+</div>
+
+<div class="card mb-4">
+
+<input
+id="searchBox"
+placeholder="Search Family"
+class="border p-2 rounded w-full"
+onkeyup="render()">
+
+</div>
+
+<div class="card">
+
+<h2 class="font-bold mb-3">
+Registrations
+</h2>
+
+<div id="familyList"></div>
+
+</div>
+
+</div>
+
+<script>
+
+const ENTRY_FEE = 179;
+const STORAGE_KEY = "garba_phase1";
+
+let editingId = null;
+
+function loadState(){
+
+    try{
+
+        const stored =
+            JSON.parse(
+                localStorage.getItem(STORAGE_KEY)
+            );
+
+        return stored || {
+            families:[]
+        };
+
+    }catch{
+
+        return {
+            families:[]
+        };
+
+    }
+
+}
+
+let state = loadState();
+
+function saveState(){
+
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(state)
+    );
+
+}
+
+function getPaymentStatus(due, paid){
+
+    if(paid <= 0){
+        return "Pending";
+    }
+
+    if(paid >= due){
+        return "Paid";
+    }
+
+    return "Partial";
+
+}
+
+function clearForm(){
+
+    document.getElementById("familyName").value = "";
+    document.getElementById("phone").value = "";
+    document.getElementById("adults").value = "";
+    document.getElementById("children").value = "";
+    document.getElementById("amountPaid").value = "";
+
+    editingId = null;
+
+    document.getElementById("editingLabel").textContent = "";
+
+}
+
+function saveFamily(){
+
+    const familyName =
+        document.getElementById("familyName")
+        .value.trim();
+
+    const phone =
+        document.getElementById("phone")
+        .value.trim();
+
+    const adults =
+        Math.max(
+            1,
+            parseInt(
+                document.getElementById("adults").value || "1",
+                10
+            )
+        );
+
+    const children =
+        Math.max(
+            0,
+            parseInt(
+                document.getElementById("children").value || "0",
+                10
+            )
+        );
+
+    const amountPaid =
+        Math.max(
+            0,
+            Number(
+                document.getElementById("amountPaid").value || 0
+            )
+        );
+
+    if(!familyName){
+
+        alert("Family name required");
+        return;
+
+    }
+
+    const amountDue = adults * ENTRY_FEE;
+
+    const balance =
+        Math.max(
+            0,
+            amountDue - amountPaid
+        );
+
+    const status =
+        getPaymentStatus(
+            amountDue,
+            amountPaid
+        );
+
+    const existing =
+        state.families.find(
+            f => f.id === editingId
+        );
+
+    const record = {
+
+        id:
+            editingId ||
+            crypto.randomUUID(),
+
+        familyName: familyName,
+
+        phone: phone,
+
+        adults: adults,
+
+        children: children,
+
+        attendance:
+            adults + children,
+
+        amountDue: amountDue,
+
+        amountPaid: amountPaid,
+
+        balance: balance,
+
+        paymentStatus: status,
+
+        checkedIn:
+            existing
+            ? existing.checkedIn
+            : false
+
+    };
+
+    if(editingId){
+
+        state.families =
+            state.families.map(
+                f => f.id === editingId
+                ? record
+                : f
+            );
+
+    }else{
+
+        state.families.push(record);
+
+    }
+
+    saveState();
+    clearForm();
+    render();
+
+}
+
+function editFamily(id){
+
+    const f =
+        state.families.find(
+            x => x.id === id
+        );
+
+    if(!f){
+        return;
+    }
+
+    editingId = id;
+
+    document.getElementById("familyName").value =
+        f.familyName;
+
+    document.getElementById("phone").value =
+        f.phone;
+
+    document.getElementById("adults").value =
+        f.adults;
+
+    document.getElementById("children").value =
+        f.children;
+
+    document.getElementById("amountPaid").value =
+        f.amountPaid;
+
+    document.getElementById("editingLabel").textContent =
+        "Editing Registration";
+
+}
+
+function deleteFamily(id){
+
+    state.families =
+        state.families.filter(
+            f => f.id !== id
+        );
+
+    saveState();
+    render();
+
+}
+
+function toggleCheckin(id){
+
+    const f =
+        state.families.find(
+            x => x.id === id
+        );
+
+    if(!f){
+        return;
+    }
+
+    f.checkedIn =
+        !f.checkedIn;
+
+    saveState();
+    render();
+
+}
+
+function render(){
+
+    state.families.forEach(f=>{
+
+        f.amountDue =
+            Number(f.adults) * ENTRY_FEE;
+
+        f.balance =
+            Math.max(
+                0,
+                f.amountDue -
+                Number(f.amountPaid)
+            );
+
+        f.paymentStatus =
+            getPaymentStatus(
+                f.amountDue,
+                Number(f.amountPaid)
+            );
+
+    });
+
+    const search =
+    (
+        document.getElementById("searchBox")
+        .value || ""
+    ).toLowerCase();
+
+    const filtered =
+        state.families.filter(
+            f =>
+            f.familyName
+            .toLowerCase()
+            .includes(search)
+        );
+
+    document.getElementById("familiesKpi").textContent =
+        state.families.length;
+
+    document.getElementById("adultsKpi").textContent =
+        state.families.reduce(
+            (s,f)=>s+f.adults,
+            0
+        );
+
+    document.getElementById("childrenKpi").textContent =
+        state.families.reduce(
+            (s,f)=>s+f.children,
+            0
+        );
+
+    document.getElementById("attendanceKpi").textContent =
+        state.families.reduce(
+            (s,f)=>s+f.attendance,
+            0
+        );
+
+    document.getElementById("revenueKpi").textContent =
+        "MXN " +
+        state.families.reduce(
+            (s,f)=>s+f.amountDue,
+            0
+        );
+
+    document.getElementById("outstandingKpi").textContent =
+        "MXN " +
+        state.families.reduce(
+            (s,f)=>s+f.balance,
+            0
+        );
+
+    document.getElementById("familyList").innerHTML =
+        filtered.map(f => `
+        <div class="border-b py-3">
+
+        <strong>${f.familyName}</strong><br>
+
+        📱 ${f.phone}<br>
+
+        Adults: ${f.adults}
+        |
+        Children: ${f.children}
+        |
+        Attendance: ${f.attendance}
+
+        <br>
+
+        Due: MXN ${f.amountDue}
+        |
+        Paid: MXN ${f.amountPaid}
+        |
+        Balance: MXN ${f.balance}
+
+        <br>
+
+        Status:
+        <strong>${f.paymentStatus}</strong>
+
+        |
+        Check-In:
+        ${f.checkedIn ? "✅" : "❌"}
+
+        <div class="mt-2 flex gap-2 flex-wrap">
+
+<button
+class="btn bg-blue-600"
+onclick="editFamily('${f.id}')">
+Edit
+</button>
+
+<button
+class="btn bg-green-600"
+onclick="toggleCheckin('${f.id}')">
+Check-In
+</button>
+
+<button
+class="btn bg-purple-600"
+onclick="sendWhatsApp('${f.id}')">
+WhatsApp
+</button>
+
+<button
+class="btn bg-red-600"
+onclick="deleteFamily('${f.id}')">
+Delete
+</button>
+
+</div>
+
+        </div>
+        `).join("");
+
+}
+function sendWhatsApp(id){
+
+    const family =
+        state.families.find(
+            f => f.id === id
+        );
+
+    if(!family){
+        alert("Registration not found");
+        return;
+    }
+
+    let phone =
+        String(family.phone || "")
+        .replace(/\D/g,'');
+
+    if(!phone){
+        alert("Valid phone number required");
+        return;
+    }
+
+    // Auto-add Mexico country code if user entered 10 digits
+    if(phone.length === 10){
+        phone = "52" + phone;
+    }
+
+    const message =
+`🕺 GARBA NIGHT 2026
+
+Namaste ${family.familyName},
+
+You are invited to our Garba celebration.
+
+Adults: ${family.adults}
+Children: ${family.children}
+Attendance: ${family.attendance}
+
+Payment Status: ${family.paymentStatus}
+
+Amount Due: MXN ${family.amountDue}
+Amount Paid: MXN ${family.amountPaid}
+
+We look forward to celebrating with you!`;
+
+    const url =
+        `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl =
+    `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer"
+    );
+}
+render();
+
+</script>
+
+</body>
+</html>

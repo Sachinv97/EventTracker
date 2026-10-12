@@ -142,7 +142,7 @@ Registrations
 
 <script>
 
-const ENTRY_FEE = 179;
+const ENTRY_FEE = 189;
 const STORAGE_KEY = "garba_phase1";
 
 let editingId = null;
@@ -543,9 +543,9 @@ function sendWhatsApp(id){
         return;
     }
 
-    // Auto-add Mexico country code if user entered 10 digits
+    // Ask for country code if user enters 10 digits
     if(phone.length === 10){
-        phone = "52" + phone;
+        alert("Please Enter Country Code with Mobile => +91 for IND and +52 for MX");
     }
 
     const message =
